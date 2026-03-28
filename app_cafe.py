@@ -67,8 +67,7 @@ def t(en, cn):
 
 # ---------- Helpers ----------
 def valid_email(email):
-    pattern = r"^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
-    return re.match(pattern, email) is not None
+    return len(email) > 5 and "@" in email and "." in email
 
 def calc(price, cost, sales, rent, labour, other):
     revenue = price * sales * 30
