@@ -92,11 +92,11 @@ def calc(price, cost, sales, rent, labour, other):
     }
 
 def get_industry_thresholds():
-    # Food & Beverage thresholds
+    # Cafe / Food & Beverage thresholds
     return 18, 24, 30
 
 def get_buffer():
-    # Food & Beverage safety buffer
+    # Cafe safety buffer
     return 30
 
 def payback_assessment(invest, monthly_profit):
@@ -249,7 +249,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ---------- Cafe Reality Check ----------
+# ---------- Reality Check ----------
 with st.container(border=True):
     st.subheader(t("Reality Check: Melbourne cafes are harder than they look", "现实情况：墨尔本咖啡店比看起来更难做"))
 
@@ -306,6 +306,7 @@ if st.session_state.analysis_done:
     profit = base["profit"]
     breakeven = base["breakeven"]
 
+    # ---------- Final Answer ----------
     with st.container(border=True):
         st.subheader(t("Final Answer", "最终结论"))
         st.info(verdict_label(profit))
@@ -315,6 +316,7 @@ if st.session_state.analysis_done:
         m2.metric(t("Cost", "成本"), f"${total:,.0f}")
         m3.metric(t("Monthly Profit", "月利润"), f"${profit:,.0f}")
 
+    # ---------- Break-even ----------
     with st.container(border=True):
         st.subheader(t("Break-even Requirement", "盈亏平衡要求"))
 
@@ -353,6 +355,7 @@ if st.session_state.analysis_done:
                 "无法计算盈亏平衡点，因为平均每单售价必须高于平均每单成本。"
             ))
 
+    # ---------- Capital Return ----------
     with st.container(border=True):
         st.subheader(t("Capital Return", "资金回报"))
 
@@ -370,6 +373,7 @@ if st.session_state.analysis_done:
             f"对于咖啡店，粗略标准为：快速回本 ≤ {fast}个月，可接受 ≤ {acceptable}个月，较慢 ≤ {slow}个月。"
         ))
 
+    # ---------- Scenario ----------
     with st.container(border=True):
         st.subheader(t("Scenario Analysis", "情景分析"))
 
@@ -390,26 +394,32 @@ if st.session_state.analysis_done:
             st.write(t("15% higher sales", "销量上升15%"))
             st.metric("P/L", f"${optimistic['profit']:,.0f}")
 
+    # ---------- Email Gate ----------
     with st.container(border=True):
         st.subheader(t("Unlock Pro Cafe Analysis", "解锁专业版咖啡店分析"))
+
         st.markdown(f"""
         <div class="pro-box">
-            {t(
-                "Enter your email to unlock deeper judgement, risk scoring, key flags, and recommendations for your cafe model.",
-                "输入邮箱后可解锁更深入的咖啡店投资判断、风险评分、关键风险点和改善建议。"
-            )}
+        <b>{t("What you’ll unlock:", "你将解锁：")}</b><br><br>
+
+        • {t("Realistic investment judgement (not just profit)", "真实投资判断（不只是赚不赚钱）")}<br>
+        • {t("Risk score based on downside scenarios", "基于下行情景的风险评分")}<br>
+        • {t("Key red flags most people miss", "大多数人忽略的关键风险点")}<br>
+        • {t("Clear recommendations to improve your model", "如何优化模型的具体建议")}<br><br>
+
+        <b>{t("Takes 30 seconds. No spam.", "只需30秒，无垃圾邮件。")}</b>
         </div>
         """, unsafe_allow_html=True)
 
         email = st.text_input(t("Email Address", "邮箱地址"))
 
-        if st.button(t("Unlock with Email", "输入邮箱解锁"), use_container_width=True):
+        if st.button(t("Get My Result", "获取完整分析"), use_container_width=True):
             if valid_email(email):
                 st.session_state.email_submitted = True
                 st.session_state.pro_unlocked = True
                 st.success(t(
-                    f"Unlocked for {email}",
-                    f"已为 {email} 解锁"
+                    "Analysis unlocked below ↓",
+                    "分析已解锁 ↓"
                 ))
             else:
                 st.error(t(
@@ -417,6 +427,7 @@ if st.session_state.analysis_done:
                     "请输入有效的邮箱地址。"
                 ))
 
+    # ---------- Pro Analysis ----------
     if st.session_state.pro_unlocked:
         score = risk_score(
             profit=profit,
