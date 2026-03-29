@@ -241,7 +241,7 @@ from reportlab.platypus import (
 def build_report_data(
     setup_type,
     invest, rent, staff, salary, other, price, cost, sales,
-    base, cons, opt, months, gap, score
+    base, cons, opt, months, gap, score, language
 ):
     return {
         "setup_type": setup_type,
@@ -259,10 +259,15 @@ def build_report_data(
         "months": months,
         "gap": gap,
         "score": score,
+        "language": language,
     }
+
+def pdf_text(language, en, cn):
+    return en if language == "English" else cn
 
 def create_pdf_bytes(report):
     pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
+    language = report["language"]
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -330,8 +335,14 @@ def create_pdf_bytes(report):
 
     story = []
 
-    story.append(Paragraph("WorthIt? Cafe Report", title_style))
-    story.append(Paragraph("墨尔本咖啡店投资判断报告", subtitle_style))
+    story.append(Paragraph(
+        pdf_text(language, "WorthIt? Cafe Report", "WorthIt? Cafe Report"),
+        title_style
+    ))
+    story.append(Paragraph(
+        pdf_text(language, "Melbourne Cafe Investment Assessment", "墨尔本咖啡店投资判断报告"),
+        subtitle_style
+    ))
 
     summary_text = executive_summary(
         report["score"],
@@ -342,7 +353,7 @@ def create_pdf_bytes(report):
     )
 
     summary_table = Table(
-        [[Paragraph("<b>执行摘要 / Executive Summary</b>", body_style)],
+        [[Paragraph(f"<b>{pdf_text(language, 'Executive Summary', '执行摘要')}</b>", body_style)],
          [Paragraph(summary_text, body_style)]],
         colWidths=[174 * mm]
     )
@@ -359,19 +370,22 @@ def create_pdf_bytes(report):
     story.append(summary_table)
     story.append(Spacer(1, 8))
 
-    story.append(Paragraph("1. 输入参数 / Inputs", section_style))
+    story.append(Paragraph(
+        pdf_text(language, "1. Inputs", "1. 输入参数"),
+        section_style
+    ))
 
     inputs_data = [
-        ["项目", "数值"],
-        ["开店方式", str(report["setup_type"])],
-        ["初始投资", f"${report['invest']:,.0f}"],
-        ["月租金", f"${report['rent']:,.0f}"],
-        ["员工人数", f"{report['staff']}"],
-        ["每人月薪", f"${report['salary']:,.0f}"],
-        ["其他固定成本", f"${report['other']:,.0f}"],
-        ["平均每单售价", f"${report['price']:,.2f}"],
-        ["平均每单成本", f"${report['cost']:,.2f}"],
-        ["日销量", f"{report['sales']:,.0f}"],
+        [pdf_text(language, "Item", "项目"), pdf_text(language, "Value", "数值")],
+        [pdf_text(language, "Setup Type", "开店方式"), str(report["setup_type"])],
+        [pdf_text(language, "Initial Investment", "初始投资"), f"${report['invest']:,.0f}"],
+        [pdf_text(language, "Monthly Rent", "月租金"), f"${report['rent']:,.0f}"],
+        [pdf_text(language, "Staff Count", "员工人数"), f"{report['staff']}"],
+        [pdf_text(language, "Salary per Staff", "每人月薪"), f"${report['salary']:,.0f}"],
+        [pdf_text(language, "Other Fixed Costs", "其他固定成本"), f"${report['other']:,.0f}"],
+        [pdf_text(language, "Average Price per Sale", "平均每单售价"), f"${report['price']:,.2f}"],
+        [pdf_text(language, "Average Cost per Sale", "平均每单成本"), f"${report['cost']:,.2f}"],
+        [pdf_text(language, "Daily Sales", "日销量"), f"{report['sales']:,.0f}"],
     ]
     inputs_table = Table(inputs_data, colWidths=[55 * mm, 119 * mm])
     inputs_table.setStyle(TableStyle([
@@ -388,21 +402,24 @@ def create_pdf_bytes(report):
     ]))
     story.append(inputs_table)
 
-    story.append(Paragraph("2. 基础结果 / Base Result", section_style))
+    story.append(Paragraph(
+        pdf_text(language, "2. Base Result", "2. 基础结果"),
+        section_style
+    ))
     breakeven_text = (
-        f"{report['base']['breakeven']:,.0f} 单位/天"
+        f"{report['base']['breakeven']:,.0f} {pdf_text(language, 'units/day', '单位/天')}"
         if report["base"]["breakeven"] is not None
-        else "无法计算"
+        else pdf_text(language, "Not calculable", "无法计算")
     )
     base_data = [
-        ["收入", f"${report['base']['revenue']:,.0f}"],
-        ["总成本", f"${report['base']['total']:,.0f}"],
-        ["利润", f"${report['base']['profit']:,.0f}"],
-        ["盈亏平衡日销量", breakeven_text],
-        ["风险评分", f"{report['score']}/100"],
-        ["风险等级", risk_label(report["score"])],
-        ["回本判断", payback_label(report["months"])],
-        ["决策标签", verdict_label(report["base"]["profit"])],
+        [pdf_text(language, "Revenue", "收入"), f"${report['base']['revenue']:,.0f}"],
+        [pdf_text(language, "Total Cost", "总成本"), f"${report['base']['total']:,.0f}"],
+        [pdf_text(language, "Profit", "利润"), f"${report['base']['profit']:,.0f}"],
+        [pdf_text(language, "Break-even Daily Sales", "盈亏平衡日销量"), breakeven_text],
+        [pdf_text(language, "Risk Score", "风险评分"), f"{report['score']}/100"],
+        [pdf_text(language, "Risk Level", "风险等级"), risk_label(report["score"])],
+        [pdf_text(language, "Payback View", "回本判断"), payback_label(report["months"])],
+        [pdf_text(language, "Decision Label", "决策标签"), verdict_label(report["base"]["profit"])],
     ]
     base_table = Table(base_data, colWidths=[55 * mm, 119 * mm])
     base_table.setStyle(TableStyle([
@@ -417,12 +434,15 @@ def create_pdf_bytes(report):
     ]))
     story.append(base_table)
 
-    story.append(Paragraph("3. 情景对比 / Scenario Comparison", section_style))
+    story.append(Paragraph(
+        pdf_text(language, "3. Scenario Comparison", "3. 情景对比"),
+        section_style
+    ))
     scenario_data = [
-        ["情景", "利润"],
-        ["保守情景", f"${report['cons']['profit']:,.0f}"],
-        ["基础情景", f"${report['base']['profit']:,.0f}"],
-        ["乐观情景", f"${report['opt']['profit']:,.0f}"],
+        [pdf_text(language, "Scenario", "情景"), pdf_text(language, "Profit", "利润")],
+        [pdf_text(language, "Conservative Case", "保守情景"), f"${report['cons']['profit']:,.0f}"],
+        [pdf_text(language, "Base Case", "基础情景"), f"${report['base']['profit']:,.0f}"],
+        [pdf_text(language, "Optimistic Case", "乐观情景"), f"${report['opt']['profit']:,.0f}"],
     ]
     scenario_table = Table(scenario_data, colWidths=[87 * mm, 87 * mm])
     scenario_table.setStyle(TableStyle([
@@ -439,7 +459,10 @@ def create_pdf_bytes(report):
     ]))
     story.append(scenario_table)
 
-    story.append(Paragraph("4. 最优先的三件事 / Top 3 Priorities", section_style))
+    story.append(Paragraph(
+        pdf_text(language, "4. Top 3 Priorities", "4. 最优先的三件事"),
+        section_style
+    ))
     for i, item in enumerate(
         top_priorities(
             report["base"]["profit"],
@@ -451,11 +474,17 @@ def create_pdf_bytes(report):
     ):
         story.append(Paragraph(f"{i}. {item}", body_style))
 
-    story.append(Paragraph("5. 大白话总结 / Plain-English Summary", section_style))
+    story.append(Paragraph(
+        pdf_text(language, "5. Plain-English Summary", "5. 大白话总结"),
+        section_style
+    ))
     story.append(Paragraph(analyst_view(report["score"]), body_style))
 
     story.append(Spacer(1, 8))
-    story.append(Paragraph("Generated by WorthIt?", small_style))
+    story.append(Paragraph(
+        pdf_text(language, "Generated by WorthIt?", "由 WorthIt? 生成"),
+        small_style
+    ))
 
     doc.build(story)
     pdf = buffer.getvalue()
@@ -805,6 +834,7 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
         months=months,
         gap=gap,
         score=score,
+        language=lang,
     )
 
     pdf_bytes = create_pdf_bytes(report_data)
