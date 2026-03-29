@@ -14,6 +14,33 @@ lang = st.radio("Language / 语言", ["English", "中文"], horizontal=True)
 def t(en, cn):
     return en if lang == "English" else cn
 
+# ---------- Simple CSS ----------
+st.markdown("""
+<style>
+.block-container {
+    padding-top: 1.5rem;
+    padding-bottom: 3rem;
+    max-width: 980px;
+}
+.hero-box {
+    padding: 1.2rem 1.3rem;
+    border-radius: 16px;
+    border: 1px solid rgba(128,128,128,0.25);
+    margin-bottom: 1rem;
+}
+.summary-box {
+    padding: 1rem 1.1rem;
+    border-radius: 14px;
+    border: 1px solid rgba(128,128,128,0.25);
+    margin-bottom: 1rem;
+}
+.small-note {
+    opacity: 0.75;
+    font-size: 0.92rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ---------- Email ----------
 def valid_email(email):
     return len(email) > 5 and "@" in email and "." in email
@@ -28,7 +55,7 @@ setup_type = st.radio(
 if setup_type == t("New cafe (from scratch)", "从零开店"):
     DEFAULT_INVEST = 280000
 else:
-    DEFAULT_INVEST = 150000  # lower fit-out cost for takeover
+    DEFAULT_INVEST = 150000
 
 DEFAULT_RENT = 10000
 DEFAULT_STAFF = 4
@@ -87,17 +114,14 @@ def payback_label(months):
 def risk_score(base_profit, cons_profit, months, gap):
     score = 100
 
-    # Base case
     if base_profit < 0:
         score -= 45
     elif base_profit < 5000:
         score -= 20
 
-    # Downside
     if cons_profit < 0:
         score -= 25
 
-    # Payback
     if months is None:
         score -= 20
     elif months > 48:
@@ -105,7 +129,6 @@ def risk_score(base_profit, cons_profit, months, gap):
     elif months > 30:
         score -= 10
 
-    # Break-even buffer
     if gap < 0:
         score -= 20
     elif gap < 30:
@@ -121,13 +144,93 @@ def risk_label(score):
     else:
         return t("🔴 High Risk", "🔴 高风险")
 
-# ---------- UI ----------
-st.title("WorthIt? ☕")
-st.write(t("Should you open a cafe in Melbourne?", "在墨尔本开咖啡店值得吗？"))
-st.caption(t(
-    "Default assumptions reflect a more realistic Melbourne operating environment.",
-    "默认参数更接近墨尔本真实经营环境。"
-))
+def executive_summary(score, profit, cons_profit, months, gap):
+    if score < 50:
+        return t(
+            "This cafe idea currently looks weak. The numbers suggest that the downside risk is too high unless key assumptions improve.",
+            "这个咖啡店想法目前看起来偏弱。除非关键假设明显改善，否则下行风险过高。"
+        )
+    elif score < 75:
+        return t(
+            "This cafe may work, but the model is fragile. It needs tighter cost control and a bigger sales buffer before it feels comfortable.",
+            "这个咖啡店不是不能做，但模型偏脆弱。在真正让人放心之前，还需要更严格的成本控制和更大的销量安全垫。"
+        )
+    else:
+        return t(
+            "This cafe model looks reasonably workable on paper. It still depends heavily on execution, but it is not obviously broken.",
+            "这个咖啡店模型在纸面上是相对能成立的。它仍然高度依赖执行，但至少不是明显有结构性问题。"
+        )
+
+def top_priorities(base_profit, cons_profit, months, gap):
+    priorities = []
+
+    if gap < 0:
+        priorities.append(t(
+            "Lift daily sales above break-even through stronger demand, better location, or a sharper offer.",
+            "把日销量提高到盈亏平衡点以上——靠更强的需求、更好的位置或更有竞争力的产品。"
+        ))
+
+    if base_profit < 0:
+        priorities.append(t(
+            "Reduce fixed costs, especially rent and staffing.",
+            "降低固定成本，尤其是租金和人员配置。"
+        ))
+
+    if cons_profit < 0:
+        priorities.append(t(
+            "Build more downside protection because current assumptions are too optimistic.",
+            "建立更强的下行保护，因为目前的假设偏乐观。"
+        ))
+
+    if months is not None and months > 30:
+        priorities.append(t(
+            "Improve payback speed by increasing margin, volume, or reducing initial capital outlay.",
+            "通过提高利润率、销量或降低前期投入，改善回本速度。"
+        ))
+
+    if not priorities:
+        priorities.append(t(
+            "Keep the model disciplined and avoid over-hiring too early.",
+            "保持模型纪律，不要过早增加人手。"
+        ))
+        priorities.append(t(
+            "Stress-test slower weekdays, not just peak periods.",
+            "要测试工作日慢时段，而不是只看高峰时段。"
+        ))
+        priorities.append(t(
+            "Protect gross margin and watch wage pressure closely.",
+            "保护毛利率，并密切关注工资压力。"
+        ))
+
+    return priorities[:3]
+
+def analyst_view(score):
+    if score < 50:
+        return t(
+            "If this were my money, I would not rush into it. The model is too weak in its current form.",
+            "如果这是我自己的钱，我不会急着做。以现在的模型来看，它还不够强。"
+        )
+    elif score < 75:
+        return t(
+            "This can work, but you should assume it will be harder than it looks. You need more buffer.",
+            "这个项目不是不能做，但你要默认它会比看起来更难。你需要更大的安全垫。"
+        )
+    else:
+        return t(
+            "This is one of the better-looking cases — but success still depends on execution, not just the spreadsheet.",
+            "这是相对更好看的情况之一——但最终成不成，仍然取决于执行，而不只是表格。"
+        )
+
+# ---------- Header ----------
+st.markdown(f"""
+<div class="hero-box">
+    <h1 style="margin-bottom:0.4rem;">WorthIt? ☕</h1>
+    <div>{t("Should you open a cafe in Melbourne?", "在墨尔本开咖啡店值得吗？")}</div>
+    <div class="small-note" style="margin-top:0.5rem;">
+        {t("Default assumptions reflect a more realistic Melbourne operating environment.", "默认参数更接近墨尔本真实经营环境。")}
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ---------- Hidden Cost Reality ----------
 with st.expander(t("Where does the money go?", "钱都花在哪里？")):
@@ -164,7 +267,7 @@ if st.button(t("Run Analysis", "开始分析")):
     st.session_state.analysis_done = True
     st.session_state.pro_unlocked = False
 
-# ---------- Results ----------
+# ---------- Base Results ----------
 if st.session_state.analysis_done:
     labour = staff * salary
 
@@ -179,6 +282,7 @@ if st.session_state.analysis_done:
 
     months = payback_months(invest, profit)
     gap = sales - breakeven if breakeven is not None else -999
+    score = risk_score(profit, cons["profit"], months, gap)
 
     st.subheader(t("Base Result", "基础结果"))
     st.write(f"**{t('Revenue', '收入')}**: ${revenue:,.0f}")
@@ -230,7 +334,15 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
     st.markdown("---")
     st.subheader(t("Pro Analysis", "专业分析"))
 
-    # 1. Final decision
+    # Executive Summary
+    st.markdown("### " + t("Executive Summary", "执行摘要"))
+    st.markdown(f"""
+    <div class="summary-box">
+    {executive_summary(score, profit, cons['profit'], months, gap)}
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Final Decision
     st.markdown("### " + t("1. Final Decision", "1. 最终判断"))
     if score < 50:
         st.error(t(
@@ -248,14 +360,15 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
             "从模型上看，这个项目是可以做的，但最终结果仍然非常依赖实际执行。"
         ))
 
-    # 2. Score summary
-    st.markdown("### " + t("2. Score Summary", "2. 评分总结"))
-    st.write(f"**{t('Risk Score', '风险评分')}**: {score}/100")
+    # Risk Score
+    st.markdown("### " + t("2. Risk Score", "2. 风险评分"))
+    st.write(f"**{t('Score', '分数')}**: {score}/100")
+    st.progress(score / 100)
     st.write(f"**{t('Risk Level', '风险等级')}**: {risk_label(score)}")
     st.write(f"**{t('Payback View', '回本判断')}**: {payback_label(months)}")
     st.write(f"**{t('Decision Label', '决策标签')}**: {verdict_label(profit)}")
 
-    # 3. What is driving the result
+    # Drivers
     st.markdown("### " + t("3. What Is Driving the Result", "3. 结果为什么会这样"))
     drivers = []
 
@@ -317,7 +430,7 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
     for d in drivers:
         st.write("• " + d)
 
-    # 4. Biggest risks
+    # Biggest Risks
     st.markdown("### " + t("4. Biggest Risks", "4. 最大风险点"))
     risks = []
 
@@ -361,8 +474,14 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
     for r in risks:
         st.write("• " + r)
 
-    # 5. What needs to change
-    st.markdown("### " + t("5. What Needs to Change", "5. 如果要做，需要改变什么"))
+    # Top 3 Priorities
+    st.markdown("### " + t("5. Top 3 Priorities", "5. 最优先的三件事"))
+    priorities = top_priorities(profit, cons["profit"], months, gap)
+    for i, p in enumerate(priorities, start=1):
+        st.write(f"**{i}.** {p}")
+
+    # Changes needed
+    st.markdown("### " + t("6. What Needs to Change", "6. 如果要做，需要改变什么"))
     changes = []
 
     if profit < 0:
@@ -400,8 +519,8 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
     for c in changes:
         st.write("• " + c)
 
-    # 6. Scenario comparison
-    st.markdown("### " + t("6. Scenario Comparison", "6. 情景对比"))
+    # Scenario comparison
+    st.markdown("### " + t("7. Scenario Comparison", "7. 情景对比"))
     st.write(f"**{t('Conservative Case Profit', '保守情景利润')}**: ${cons['profit']:,.0f}")
     st.write(f"**{t('Base Case Profit', '基础情景利润')}**: ${profit:,.0f}")
     st.write(f"**{t('Optimistic Case Profit', '乐观情景利润')}**: ${opt['profit']:,.0f}")
@@ -422,8 +541,8 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
             "这个模型还不够稳健，现实中的小波动就可能把它打穿。"
         ))
 
-    # 7. Reality check
-    st.markdown("### " + t("7. Reality Check", "7. 现实提醒"))
+    # Reality check
+    st.markdown("### " + t("8. Reality Check", "8. 现实提醒"))
     st.write(t(
         "A cafe can look busy and still lose money.",
         "咖啡店可以看起来很忙，但仍然亏钱。"
@@ -433,20 +552,6 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
         "真正重要的是利润率、成本控制、人员效率和稳定性，而不只是客流。"
     ))
 
-    # 8. Plain-English summary
-    st.markdown("### " + t("8. Plain-English Summary", "8. 大白话总结"))
-    if score < 50:
-        st.write(t(
-            "If this were my money, I would not rush into it. The model is too weak in its current form.",
-            "如果这是我自己的钱，我不会急着做。以现在的模型来看，它还不够强。"
-        ))
-    elif score < 75:
-        st.write(t(
-            "This can work, but you should assume it will be harder than it looks. You need more buffer.",
-            "这个项目不是不能做，但你要默认它会比看起来更难。你需要更大的安全垫。"
-        ))
-    else:
-        st.write(t(
-            "This is one of the better-looking cases — but success still depends on execution, not just the spreadsheet.",
-            "这是相对更好看的情况之一——但最终成不成，仍然取决于执行，而不只是表格。"
-        ))
+    # Plain-English summary
+    st.markdown("### " + t("9. Plain-English Summary", "9. 大白话总结"))
+    st.write(analyst_view(score))
