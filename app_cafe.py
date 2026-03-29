@@ -1,3 +1,4 @@
+import io
 import streamlit as st
 
 st.set_page_config(page_title="WorthIt? | Cafe", page_icon="☕", layout="centered")
@@ -42,7 +43,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---------- Email ----------
-def valid_email(email):
+def valid_email(email: str) -> bool:
     return len(email) > 5 and "@" in email and "." in email
 
 # ---------- Setup Type ----------
@@ -221,6 +222,129 @@ def analyst_view(score):
             "这是相对更好看的情况之一——但最终成不成，仍然取决于执行，而不只是表格。"
         )
 
+# ---------- PDF ----------
+def build_report_lines(
+    setup_type,
+    invest, rent, staff, salary, other, price, cost, sales,
+    base, cons, opt, months, gap, score
+):
+    lines = []
+    lines.append("WorthIt? Cafe Report")
+    lines.append("=" * 40)
+    lines.append(f"Setup Type: {setup_type}")
+    lines.append("")
+    lines.append("Inputs")
+    lines.append("-" * 20)
+    lines.append(f"Initial Investment: ${invest:,.0f}")
+    lines.append(f"Monthly Rent: ${rent:,.0f}")
+    lines.append(f"Staff Count: {staff}")
+    lines.append(f"Salary per Staff: ${salary:,.0f}")
+    lines.append(f"Other Fixed Costs: ${other:,.0f}")
+    lines.append(f"Average Price per Sale: ${price:,.2f}")
+    lines.append(f"Average Cost per Sale: ${cost:,.2f}")
+    lines.append(f"Daily Sales: {sales:,.0f}")
+    lines.append("")
+    lines.append("Executive Summary")
+    lines.append("-" * 20)
+    lines.append(executive_summary(score, base["profit"], cons["profit"], months, gap))
+    lines.append("")
+    lines.append("Base Result")
+    lines.append("-" * 20)
+    lines.append(f"Revenue: ${base['revenue']:,.0f}")
+    lines.append(f"Cost: ${base['total']:,.0f}")
+    lines.append(f"Profit: ${base['profit']:,.0f}")
+    if base["breakeven"] is not None:
+        lines.append(f"Break-even Daily Sales: {base['breakeven']:,.0f} units/day")
+    else:
+        lines.append("Break-even Daily Sales: Not calculable")
+    lines.append("")
+    lines.append("Risk Summary")
+    lines.append("-" * 20)
+    lines.append(f"Risk Score: {score}/100")
+    lines.append(f"Risk Level: {risk_label(score)}")
+    lines.append(f"Payback View: {payback_label(months)}")
+    lines.append(f"Decision Label: {verdict_label(base['profit'])}")
+    lines.append("")
+    lines.append("Scenario Comparison")
+    lines.append("-" * 20)
+    lines.append(f"Conservative Case Profit: ${cons['profit']:,.0f}")
+    lines.append(f"Base Case Profit: ${base['profit']:,.0f}")
+    lines.append(f"Optimistic Case Profit: ${opt['profit']:,.0f}")
+    lines.append("")
+    lines.append("Top 3 Priorities")
+    lines.append("-" * 20)
+    for i, p in enumerate(top_priorities(base["profit"], cons["profit"], months, gap), start=1):
+        lines.append(f"{i}. {p}")
+    lines.append("")
+    lines.append("Plain-English Summary")
+    lines.append("-" * 20)
+    lines.append(analyst_view(score))
+    return lines
+
+def create_pdf_bytes(lines):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+    # Try to register a Unicode font for Chinese; if unavailable, PDF still works for English.
+    font_candidates = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    ]
+    registered_font = None
+    for fp in font_candidates:
+        try:
+            pdfmetrics.registerFont(TTFont("CustomUnicode", fp))
+            registered_font = "CustomUnicode"
+            break
+        except Exception:
+            continue
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36,
+    )
+
+    styles = getSampleStyleSheet()
+    body_style = ParagraphStyle(
+        "BodyCustom",
+        parent=styles["BodyText"],
+        fontName=registered_font or "Helvetica",
+        fontSize=10.5,
+        leading=14,
+        spaceAfter=6,
+    )
+    title_style = ParagraphStyle(
+        "TitleCustom",
+        parent=styles["Title"],
+        fontName=registered_font or "Helvetica-Bold",
+        fontSize=16,
+        leading=20,
+        spaceAfter=12,
+    )
+
+    story = []
+    for i, line in enumerate(lines):
+        safe = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        if i == 0:
+            story.append(Paragraph(safe, title_style))
+        else:
+            story.append(Paragraph(safe, body_style))
+        if line == "":
+            story.append(Spacer(1, 6))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer.getvalue()
+
 # ---------- Header ----------
 st.markdown(f"""
 <div class="hero-box">
@@ -334,7 +458,6 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
     st.markdown("---")
     st.subheader(t("Pro Analysis", "专业分析"))
 
-    # Executive Summary
     st.markdown("### " + t("Executive Summary", "执行摘要"))
     st.markdown(f"""
     <div class="summary-box">
@@ -342,7 +465,6 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
     </div>
     """, unsafe_allow_html=True)
 
-    # Final Decision
     st.markdown("### " + t("1. Final Decision", "1. 最终判断"))
     if score < 50:
         st.error(t(
@@ -360,7 +482,6 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
             "从模型上看，这个项目是可以做的，但最终结果仍然非常依赖实际执行。"
         ))
 
-    # Risk Score
     st.markdown("### " + t("2. Risk Score", "2. 风险评分"))
     st.write(f"**{t('Score', '分数')}**: {score}/100")
     st.progress(score / 100)
@@ -368,7 +489,6 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
     st.write(f"**{t('Payback View', '回本判断')}**: {payback_label(months)}")
     st.write(f"**{t('Decision Label', '决策标签')}**: {verdict_label(profit)}")
 
-    # Drivers
     st.markdown("### " + t("3. What Is Driving the Result", "3. 结果为什么会这样"))
     drivers = []
 
@@ -430,7 +550,6 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
     for d in drivers:
         st.write("• " + d)
 
-    # Biggest Risks
     st.markdown("### " + t("4. Biggest Risks", "4. 最大风险点"))
     risks = []
 
@@ -474,13 +593,11 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
     for r in risks:
         st.write("• " + r)
 
-    # Top 3 Priorities
     st.markdown("### " + t("5. Top 3 Priorities", "5. 最优先的三件事"))
     priorities = top_priorities(profit, cons["profit"], months, gap)
     for i, p in enumerate(priorities, start=1):
         st.write(f"**{i}.** {p}")
 
-    # Changes needed
     st.markdown("### " + t("6. What Needs to Change", "6. 如果要做，需要改变什么"))
     changes = []
 
@@ -519,7 +636,6 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
     for c in changes:
         st.write("• " + c)
 
-    # Scenario comparison
     st.markdown("### " + t("7. Scenario Comparison", "7. 情景对比"))
     st.write(f"**{t('Conservative Case Profit', '保守情景利润')}**: ${cons['profit']:,.0f}")
     st.write(f"**{t('Base Case Profit', '基础情景利润')}**: ${profit:,.0f}")
@@ -541,7 +657,6 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
             "这个模型还不够稳健，现实中的小波动就可能把它打穿。"
         ))
 
-    # Reality check
     st.markdown("### " + t("8. Reality Check", "8. 现实提醒"))
     st.write(t(
         "A cafe can look busy and still lose money.",
@@ -552,6 +667,49 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
         "真正重要的是利润率、成本控制、人员效率和稳定性，而不只是客流。"
     ))
 
-    # Plain-English summary
     st.markdown("### " + t("9. Plain-English Summary", "9. 大白话总结"))
     st.write(analyst_view(score))
+
+    # ---------- Download PDF ----------
+    st.markdown("### " + t("10. Download Report", "10. 下载报告"))
+
+    report_lines = build_report_lines(
+        setup_type=setup_type,
+        invest=invest,
+        rent=rent,
+        staff=staff,
+        salary=salary,
+        other=other,
+        price=price,
+        cost=cost,
+        sales=sales,
+        base=base,
+        cons=cons,
+        opt=opt,
+        months=months,
+        gap=gap,
+        score=score,
+    )
+
+    try:
+        pdf_bytes = create_pdf_bytes(report_lines)
+        st.download_button(
+            label=t("Download PDF Report", "下载 PDF 报告"),
+            data=pdf_bytes,
+            file_name="worthit_cafe_report.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
+    except Exception as e:
+        fallback_text = "\n".join(report_lines)
+        st.warning(t(
+            "PDF generation is not available right now. You can still download the text report below.",
+            "当前无法生成 PDF，你仍然可以下载文本版报告。"
+        ))
+        st.download_button(
+            label=t("Download Text Report", "下载文本报告"),
+            data=fallback_text,
+            file_name="worthit_cafe_report.txt",
+            mime="text/plain",
+            use_container_width=True,
+        )
