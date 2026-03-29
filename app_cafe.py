@@ -223,127 +223,244 @@ def analyst_view(score):
         )
 
 # ---------- PDF ----------
-def build_report_lines(
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import mm
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont
+from reportlab.pdfbase import pdfmetrics
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
+)
+
+def build_report_data(
     setup_type,
     invest, rent, staff, salary, other, price, cost, sales,
     base, cons, opt, months, gap, score
 ):
-    lines = []
-    lines.append("WorthIt? Cafe Report")
-    lines.append("=" * 40)
-    lines.append(f"Setup Type: {setup_type}")
-    lines.append("")
-    lines.append("Inputs")
-    lines.append("-" * 20)
-    lines.append(f"Initial Investment: ${invest:,.0f}")
-    lines.append(f"Monthly Rent: ${rent:,.0f}")
-    lines.append(f"Staff Count: {staff}")
-    lines.append(f"Salary per Staff: ${salary:,.0f}")
-    lines.append(f"Other Fixed Costs: ${other:,.0f}")
-    lines.append(f"Average Price per Sale: ${price:,.2f}")
-    lines.append(f"Average Cost per Sale: ${cost:,.2f}")
-    lines.append(f"Daily Sales: {sales:,.0f}")
-    lines.append("")
-    lines.append("Executive Summary")
-    lines.append("-" * 20)
-    lines.append(executive_summary(score, base["profit"], cons["profit"], months, gap))
-    lines.append("")
-    lines.append("Base Result")
-    lines.append("-" * 20)
-    lines.append(f"Revenue: ${base['revenue']:,.0f}")
-    lines.append(f"Cost: ${base['total']:,.0f}")
-    lines.append(f"Profit: ${base['profit']:,.0f}")
-    if base["breakeven"] is not None:
-        lines.append(f"Break-even Daily Sales: {base['breakeven']:,.0f} units/day")
-    else:
-        lines.append("Break-even Daily Sales: Not calculable")
-    lines.append("")
-    lines.append("Risk Summary")
-    lines.append("-" * 20)
-    lines.append(f"Risk Score: {score}/100")
-    lines.append(f"Risk Level: {risk_label(score)}")
-    lines.append(f"Payback View: {payback_label(months)}")
-    lines.append(f"Decision Label: {verdict_label(base['profit'])}")
-    lines.append("")
-    lines.append("Scenario Comparison")
-    lines.append("-" * 20)
-    lines.append(f"Conservative Case Profit: ${cons['profit']:,.0f}")
-    lines.append(f"Base Case Profit: ${base['profit']:,.0f}")
-    lines.append(f"Optimistic Case Profit: ${opt['profit']:,.0f}")
-    lines.append("")
-    lines.append("Top 3 Priorities")
-    lines.append("-" * 20)
-    for i, p in enumerate(top_priorities(base["profit"], cons["profit"], months, gap), start=1):
-        lines.append(f"{i}. {p}")
-    lines.append("")
-    lines.append("Plain-English Summary")
-    lines.append("-" * 20)
-    lines.append(analyst_view(score))
-    return lines
+    return {
+        "setup_type": setup_type,
+        "invest": invest,
+        "rent": rent,
+        "staff": staff,
+        "salary": salary,
+        "other": other,
+        "price": price,
+        "cost": cost,
+        "sales": sales,
+        "base": base,
+        "cons": cons,
+        "opt": opt,
+        "months": months,
+        "gap": gap,
+        "score": score,
+    }
 
-def create_pdf_bytes(lines):
-    from reportlab.lib.pagesizes import A4
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-
-    # Try to register a Unicode font for Chinese; if unavailable, PDF still works for English.
-    font_candidates = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    ]
-    registered_font = None
-    for fp in font_candidates:
-        try:
-            pdfmetrics.registerFont(TTFont("CustomUnicode", fp))
-            registered_font = "CustomUnicode"
-            break
-        except Exception:
-            continue
+def create_pdf_bytes(report):
+    pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        rightMargin=36,
-        leftMargin=36,
-        topMargin=36,
-        bottomMargin=36,
+        rightMargin=18 * mm,
+        leftMargin=18 * mm,
+        topMargin=16 * mm,
+        bottomMargin=16 * mm,
     )
 
     styles = getSampleStyleSheet()
-    body_style = ParagraphStyle(
-        "BodyCustom",
+
+    title_style = ParagraphStyle(
+        "TitleCN",
+        parent=styles["Title"],
+        fontName="STSong-Light",
+        fontSize=20,
+        leading=24,
+        textColor=colors.HexColor("#111111"),
+        spaceAfter=10,
+    )
+
+    subtitle_style = ParagraphStyle(
+        "SubtitleCN",
         parent=styles["BodyText"],
-        fontName=registered_font or "Helvetica",
+        fontName="STSong-Light",
         fontSize=10.5,
         leading=14,
-        spaceAfter=6,
-    )
-    title_style = ParagraphStyle(
-        "TitleCustom",
-        parent=styles["Title"],
-        fontName=registered_font or "Helvetica-Bold",
-        fontSize=16,
-        leading=20,
+        textColor=colors.HexColor("#666666"),
         spaceAfter=12,
     )
 
+    section_style = ParagraphStyle(
+        "SectionCN",
+        parent=styles["Heading2"],
+        fontName="STSong-Light",
+        fontSize=13,
+        leading=17,
+        textColor=colors.HexColor("#111111"),
+        spaceBefore=10,
+        spaceAfter=8,
+    )
+
+    body_style = ParagraphStyle(
+        "BodyCN",
+        parent=styles["BodyText"],
+        fontName="STSong-Light",
+        fontSize=10.5,
+        leading=15,
+        textColor=colors.HexColor("#222222"),
+        alignment=TA_LEFT,
+        spaceAfter=6,
+    )
+
+    small_style = ParagraphStyle(
+        "SmallCN",
+        parent=styles["BodyText"],
+        fontName="STSong-Light",
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor("#666666"),
+        spaceAfter=4,
+    )
+
     story = []
-    for i, line in enumerate(lines):
-        safe = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        if i == 0:
-            story.append(Paragraph(safe, title_style))
-        else:
-            story.append(Paragraph(safe, body_style))
-        if line == "":
-            story.append(Spacer(1, 6))
+
+    story.append(Paragraph("WorthIt? Cafe Report", title_style))
+    story.append(Paragraph("墨尔本咖啡店投资判断报告", subtitle_style))
+
+    summary_text = executive_summary(
+        report["score"],
+        report["base"]["profit"],
+        report["cons"]["profit"],
+        report["months"],
+        report["gap"],
+    )
+
+    summary_table = Table(
+        [[Paragraph("<b>执行摘要 / Executive Summary</b>", body_style)],
+         [Paragraph(summary_text, body_style)]],
+        colWidths=[174 * mm]
+    )
+    summary_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F3F4F6")),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#FAFAFA")),
+        ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#D1D5DB")),
+        ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#E5E7EB")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    story.append(summary_table)
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph("1. 输入参数 / Inputs", section_style))
+
+    inputs_data = [
+        ["项目", "数值"],
+        ["开店方式", str(report["setup_type"])],
+        ["初始投资", f"${report['invest']:,.0f}"],
+        ["月租金", f"${report['rent']:,.0f}"],
+        ["员工人数", f"{report['staff']}"],
+        ["每人月薪", f"${report['salary']:,.0f}"],
+        ["其他固定成本", f"${report['other']:,.0f}"],
+        ["平均每单售价", f"${report['price']:,.2f}"],
+        ["平均每单成本", f"${report['cost']:,.2f}"],
+        ["日销量", f"{report['sales']:,.0f}"],
+    ]
+    inputs_table = Table(inputs_data, colWidths=[55 * mm, 119 * mm])
+    inputs_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#111827")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, -1), "STSong-Light"),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D1D5DB")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F9FAFB")]),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    story.append(inputs_table)
+
+    story.append(Paragraph("2. 基础结果 / Base Result", section_style))
+    breakeven_text = (
+        f"{report['base']['breakeven']:,.0f} 单位/天"
+        if report["base"]["breakeven"] is not None
+        else "无法计算"
+    )
+    base_data = [
+        ["收入", f"${report['base']['revenue']:,.0f}"],
+        ["总成本", f"${report['base']['total']:,.0f}"],
+        ["利润", f"${report['base']['profit']:,.0f}"],
+        ["盈亏平衡日销量", breakeven_text],
+        ["风险评分", f"{report['score']}/100"],
+        ["风险等级", risk_label(report["score"])],
+        ["回本判断", payback_label(report["months"])],
+        ["决策标签", verdict_label(report["base"]["profit"])],
+    ]
+    base_table = Table(base_data, colWidths=[55 * mm, 119 * mm])
+    base_table.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (-1, -1), "STSong-Light"),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D1D5DB")),
+        ("ROWBACKGROUNDS", (0, 0), (-1, -1), [colors.white, colors.HexColor("#F9FAFB")]),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    story.append(base_table)
+
+    story.append(Paragraph("3. 情景对比 / Scenario Comparison", section_style))
+    scenario_data = [
+        ["情景", "利润"],
+        ["保守情景", f"${report['cons']['profit']:,.0f}"],
+        ["基础情景", f"${report['base']['profit']:,.0f}"],
+        ["乐观情景", f"${report['opt']['profit']:,.0f}"],
+    ]
+    scenario_table = Table(scenario_data, colWidths=[87 * mm, 87 * mm])
+    scenario_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#111827")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, -1), "STSong-Light"),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D1D5DB")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F9FAFB")]),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    story.append(scenario_table)
+
+    story.append(Paragraph("4. 最优先的三件事 / Top 3 Priorities", section_style))
+    for i, item in enumerate(
+        top_priorities(
+            report["base"]["profit"],
+            report["cons"]["profit"],
+            report["months"],
+            report["gap"]
+        ),
+        start=1
+    ):
+        story.append(Paragraph(f"{i}. {item}", body_style))
+
+    story.append(Paragraph("5. 大白话总结 / Plain-English Summary", section_style))
+    story.append(Paragraph(analyst_view(report["score"]), body_style))
+
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("Generated by WorthIt?", small_style))
 
     doc.build(story)
-    buffer.seek(0)
-    return buffer.getvalue()
+    pdf = buffer.getvalue()
+    buffer.close()
+    return pdf
 
 # ---------- Header ----------
 st.markdown(f"""
@@ -670,10 +787,9 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
     st.markdown("### " + t("9. Plain-English Summary", "9. 大白话总结"))
     st.write(analyst_view(score))
 
-    # ---------- Download PDF ----------
     st.markdown("### " + t("10. Download Report", "10. 下载报告"))
 
-    report_lines = build_report_lines(
+    report_data = build_report_data(
         setup_type=setup_type,
         invest=invest,
         rent=rent,
@@ -691,25 +807,12 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
         score=score,
     )
 
-    try:
-        pdf_bytes = create_pdf_bytes(report_lines)
-        st.download_button(
-            label=t("Download PDF Report", "下载 PDF 报告"),
-            data=pdf_bytes,
-            file_name="worthit_cafe_report.pdf",
-            mime="application/pdf",
-            use_container_width=True,
-        )
-    except Exception as e:
-        fallback_text = "\n".join(report_lines)
-        st.warning(t(
-            "PDF generation is not available right now. You can still download the text report below.",
-            "当前无法生成 PDF，你仍然可以下载文本版报告。"
-        ))
-        st.download_button(
-            label=t("Download Text Report", "下载文本报告"),
-            data=fallback_text,
-            file_name="worthit_cafe_report.txt",
-            mime="text/plain",
-            use_container_width=True,
-        )
+    pdf_bytes = create_pdf_bytes(report_data)
+
+    st.download_button(
+        label=t("Download PDF Report", "下载 PDF 报告"),
+        data=pdf_bytes,
+        file_name="worthit_cafe_report.pdf",
+        mime="application/pdf",
+        use_container_width=True,
+    )
