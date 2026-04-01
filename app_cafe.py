@@ -1,4 +1,6 @@
 import io
+import requests
+from datetime import datetime
 import streamlit as st
 
 st.set_page_config(page_title="WorthIt? | Cafe", page_icon="☕", layout="centered")
@@ -45,6 +47,38 @@ st.markdown("""
 # ---------- Email ----------
 def valid_email(email: str) -> bool:
     return len(email) > 5 and "@" in email and "." in email
+
+# ---------- Airtable ----------
+def save_to_airtable(email, language, setup_type, invest, rent, staff, salary, other, price, cost, sales, profit, risk_score_value):
+    try:
+        url = f"https://api.airtable.com/v0/{st.secrets['AIRTABLE_BASE_ID']}/{st.secrets['AIRTABLE_TABLE_NAME']}"
+        headers = {
+            "Authorization": f"Bearer {st.secrets['AIRTABLE_API_KEY']}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "fields": {
+                "email": email,
+                "language": language,
+                "setup_type": setup_type,
+                "investment": invest,
+                "rent": rent,
+                "staff": staff,
+                "salary": salary,
+                "other": other,
+                "price": price,
+                "cost": cost,
+                "sales": sales,
+                "profit": profit,
+                "risk_score": risk_score_value,
+                "created_at": datetime.now().isoformat(timespec="seconds")
+            }
+        }
+        response = requests.post(url, json=payload, headers=headers, timeout=20)
+        response.raise_for_status()
+        return True, None
+    except Exception as e:
+        return False, str(e)
 
 # ---------- Setup Type ----------
 setup_type = st.radio(
@@ -225,7 +259,6 @@ def analyst_view(score):
 # ---------- PDF ----------
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
@@ -319,7 +352,6 @@ def create_pdf_bytes(report):
         fontSize=10.5,
         leading=15,
         textColor=colors.HexColor("#222222"),
-        alignment=TA_LEFT,
         spaceAfter=6,
     )
 
@@ -580,8 +612,32 @@ if st.session_state.analysis_done:
 
     if st.button(t("Get My Full Analysis", "获取完整分析")):
         if valid_email(email):
+            save_ok, save_error = save_to_airtable(
+                email=email,
+                language=lang,
+                setup_type=setup_type,
+                invest=invest,
+                rent=rent,
+                staff=staff,
+                salary=salary,
+                other=other,
+                price=price,
+                cost=cost,
+                sales=sales,
+                profit=profit,
+                risk_score_value=score
+            )
+
             st.session_state.pro_unlocked = True
-            st.success(t("Full analysis unlocked below ↓", "完整分析已解锁 ↓"))
+
+            if save_ok:
+                st.success(t("Full analysis unlocked below ↓", "完整分析已解锁 ↓"))
+            else:
+                st.warning(t(
+                    "Analysis unlocked, but lead saving failed.",
+                    "分析已解锁，但邮箱保存失败。"
+                ))
+                st.caption(save_error)
         else:
             st.error(t("Please enter a valid email address.", "请输入有效邮箱地址。"))
 
