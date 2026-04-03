@@ -901,4 +901,4 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
         file_name="worthit_cafe_report.pdf",
         mime="application/pdf",
         use_container_width=True,
-    )
+    ) 
