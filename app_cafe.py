@@ -94,9 +94,14 @@ sales = st.number_input(t("Daily Sales", "日销量"), value=220)
 # ---------- Calculation ----------
 def calc():
     revenue = price * sales * 30
-    total = rent + (staff * salary) + other + (cost * sales * 30)
+    labour = staff * salary
+    cogs = cost * sales * 30
+    fixed = rent + labour + other
+    total = fixed + cogs
     profit = revenue - total
-    return revenue, total, profit
+    margin = price - cost
+    breakeven = fixed / margin / 30 if margin > 0 else 0
+    return revenue, total, profit, labour, cogs, fixed, breakeven
 
 if st.button(t("Run Analysis", "开始分析")):
     st.session_state.analysis_done = True
@@ -114,7 +119,7 @@ if st.session_state.analysis_done:
     </div>
     """, unsafe_allow_html=True)
 
-    revenue, total, profit = calc()
+    revenue, total, profit, labour, cogs, fixed, breakeven = calc()
 
     st.subheader(t("Base Result", "基础结果"))
     st.write(f"Revenue: ${revenue:,.0f}")
@@ -158,17 +163,64 @@ if st.session_state.analysis_done:
 
 # ---------- Pro ----------
 if st.session_state.pro_unlocked:
+
     st.markdown("---")
-    st.subheader(t("Full Analysis", "完整分析"))
+    st.subheader(t("Full Risk Breakdown", "完整风险拆解"))
 
+    revenue, total, profit, labour, cogs, fixed, breakeven = calc()
+    gap = sales - breakeven
+
+    # 1 Reality
+    st.markdown("### " + t("1. Reality Check", "1. 现实检查"))
     if profit < 0:
-        st.error(t("This will likely lose money.", "这个项目大概率亏钱"))
-    elif profit < 5000:
-        st.warning(t("This is risky.", "风险较高"))
+        st.error(t(f"You are losing ${profit:,.0f}/month.",
+                   f"每月亏损 ${profit:,.0f}"))
     else:
-        st.success(t("This looks viable.", "看起来可行"))
+        st.success(t(f"You make ${profit:,.0f}/month.",
+                     f"每月盈利 ${profit:,.0f}"))
 
-    st.write(t(
-        "Key risk: cost structure & demand uncertainty.",
-        "核心风险：成本结构 + 客流不确定性"
-    ))
+    # 2 Break-even
+    st.markdown("### " + t("2. Break-even Point", "2. 盈亏平衡点"))
+    st.write(t(f"You need {breakeven:,.0f} sales/day.",
+               f"每天需要 {breakeven:,.0f} 单"))
+
+    if gap < 0:
+        st.error(t(f"{abs(gap):,.0f} below break-even",
+                   f"低于盈亏平衡 {abs(gap):,.0f} 单"))
+    elif gap < 30:
+        st.warning(t(f"Only {gap:,.0f} above break-even",
+                     f"只高出 {gap:,.0f} 单"))
+    else:
+        st.success(t(f"{gap:,.0f} above break-even",
+                     f"高出 {gap:,.0f} 单"))
+
+    # 3 Cost structure
+    st.markdown("### " + t("3. Cost Structure", "3. 成本结构"))
+    st.write(f"Rent: ${rent:,.0f}")
+    st.write(f"Staff: ${labour:,.0f}")
+    st.write(f"COGS: ${cogs:,.0f}")
+    st.write(f"Other: ${other:,.0f}")
+
+    # 4 Risk
+    st.markdown("### " + t("4. Biggest Risk", "4. 最大风险"))
+    if profit < 0:
+        st.write(t("Costs too high vs sales",
+                   "成本相对销量过高"))
+    elif gap < 20:
+        st.write(t("Very thin margin",
+                   "安全垫很薄"))
+    else:
+        st.write(t("Execution dependent",
+                   "高度依赖执行"))
+
+    # 5 Action
+    st.markdown("### " + t("5. What Needs to Change", "5. 需要改变"))
+    if profit < 0:
+        st.write(t("Reduce cost or increase sales",
+                   "降低成本或提高销量"))
+    elif gap < 20:
+        st.write(t("Increase pricing or volume",
+                   "提高定价或销量"))
+    else:
+        st.write(t("Maintain stability",
+                   "保持稳定运营"))
