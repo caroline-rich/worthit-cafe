@@ -48,12 +48,6 @@ st.markdown("""
     opacity: 0.75;
     font-size: 0.92rem;
 }
-.metric-card {
-    padding: 12px 14px;
-    border-radius: 12px;
-    border: 1px solid rgba(128,128,128,0.18);
-    margin-bottom: 10px;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -313,6 +307,16 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+st.markdown(f"""
+<div class="summary-box">
+<b>{t("Why these defaults?", "为什么默认值这样设？")}</b><br><br>
+{t(
+    "These defaults are designed to reflect a more realistic Melbourne cafe setup, not an overly optimistic spreadsheet. A new cafe usually needs heavier upfront capital for fit-out, equipment and opening cash buffer. A take-over usually starts with lower upfront capital, but ongoing rent, labour and demand risk still matter.",
+    "这些默认值是为了更接近墨尔本咖啡店的真实经营环境，而不是一个过度乐观的表格模型。从零开店通常需要更重的前期投入，包括装修、设备和开业现金缓冲；接手现有店虽然前期投入通常较低，但租金、人工和客流风险仍然真实存在。"
+)}
+</div>
+""", unsafe_allow_html=True)
+
 with st.expander(t("Why are New vs Take Over defaults different?", "为什么从零开店和接手店默认值不同？")):
     st.write(t(
         "A new cafe usually needs much heavier upfront capital for fit-out, equipment, approvals, and opening cash buffer. A take-over usually starts with lower upfront capital, but the ongoing operating pressure is still real.",
@@ -365,10 +369,12 @@ if st.session_state.analysis_done:
     st.subheader(t("Base Result", "基础结果"))
 
     c1, c2, c3 = st.columns(3)
-    c1.metric(t("Monthly Revenue", "月收入"), f"${base['revenue']:,.0f}")
-    c2.metric(t("Monthly Profit", "月利润"), f"${profit:,.0f}")
-    c3.metric(t("Break-even Sales/Day", "盈亏平衡日销量"),
-              t("N/A", "无法计算") if base["breakeven"] is None else f"{base['breakeven']:,.0f}")
+    c1.metric(t("Monthly Revenue Run-Rate", "月收入水平"), f"${base['revenue']:,.0f}")
+    c2.metric(t("Estimated Monthly Operating Profit", "预计月经营利润"), f"${profit:,.0f}")
+    c3.metric(
+        t("Break-even Volume / Day", "盈亏平衡日单量"),
+        t("N/A", "无法计算") if base["breakeven"] is None else f"{base['breakeven']:,.0f}"
+    )
 
     st.markdown("### " + t("Can you do it?", "这个项目能做吗？"))
     st.write(f"**{verdict}**")
@@ -450,6 +456,10 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
 
     # 1 Executive summary
     st.markdown("### " + t("1. Executive Summary", "1. 执行摘要"))
+    st.caption(t(
+        "This is a simplified operating view, not a formal valuation, tax model, or accounting forecast.",
+        "这是一个简化的经营判断视角，不是正式估值、税务模型或会计预测。"
+    ))
     st.markdown(f"""
     <div class="summary-box">
     <b>{risk_label(score)}</b><br><br>
