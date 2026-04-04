@@ -299,10 +299,13 @@ def scenario_note(base_profit, cons_profit, opt_profit):
 # ---------- Header ----------
 st.markdown(f"""
 <div class="hero-box">
-    <h1 style="margin-bottom:0.35rem;">WorthIt? ☕</h1>
-    <div>{t("Should you open a cafe in Melbourne?", "在墨尔本开咖啡店值得吗？")}</div>
-    <div class="small-note" style="margin-top:0.45rem;">
-        {t("Market-informed default assumptions for Melbourne cafe economics.", "基于墨尔本市场现实设定的默认参数。")}
+    <h1 style="margin-bottom:0.2rem;">WorthIt? ☕</h1>
+    <div style="font-size:1.1rem;">
+        {t("Melbourne Cafe Feasibility Check", "墨尔本咖啡店可行性分析")}
+    </div>
+    <div class="small-note" style="margin-top:0.6rem;">
+        {t("A simple model to test if your cafe idea actually works in reality.",
+           "一个用来判断咖啡店在现实中是否可行的简化模型")}
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -376,6 +379,24 @@ if st.session_state.analysis_done:
         t("N/A", "无法计算") if base["breakeven"] is None else f"{base['breakeven']:,.0f}"
     )
 
+    st.markdown("### " + t("Quick Verdict", "快速结论"))
+
+    if profit < 0 or gap < 0:
+        st.error(t(
+            "❌ This model does not work under current assumptions.",
+            "❌ 按当前假设，这个模型不成立"
+        ))
+    elif profit < 5000 or (months is not None and months > 36) or gap < 20:
+        st.warning(t(
+            "⚠️ This might work, but risk is high and margin is thin.",
+            "⚠️ 可能能做，但风险较高，安全空间很小"
+        ))
+    else:
+        st.success(t(
+            "✅ This looks commercially viable on paper.",
+            "✅ 从模型看，这个项目是可行的"
+        ))
+
     st.markdown("### " + t("Can you do it?", "这个项目能做吗？"))
     st.write(f"**{verdict}**")
     st.write(decision_message(profit, months, gap))
@@ -400,6 +421,10 @@ if st.session_state.analysis_done:
     st.write(t(
         "This is not just a calculator. It shows whether the cafe actually has enough economics to survive.",
         "这不只是一个计算器，而是在判断这家咖啡店的经济模型是否真的足以活下来。"
+    ))
+    st.markdown(t(
+        "This is the part most people get wrong.",
+        "这一部分是大多数人会算错的地方"
     ))
 
     email = st.text_input(t("Enter your email", "输入邮箱"))
@@ -453,6 +478,20 @@ if st.session_state.analysis_done and st.session_state.pro_unlocked:
 
     st.markdown("---")
     st.subheader(t("Full Risk Breakdown", "完整风险拆解"))
+
+    st.markdown(f"""
+    <div class="summary-box">
+    <b>{t("Report Structure", "报告结构")}</b><br><br>
+    1. {t("Executive Summary", "执行摘要")}<br>
+    2. {t("Final Decision", "最终判断")}<br>
+    3. {t("Unit Economics", "单位经济模型")}<br>
+    4. {t("Break-even Analysis", "盈亏平衡分析")}<br>
+    5. {t("Cost Structure", "成本结构")}<br>
+    6. {t("Scenario Comparison", "情景对比")}<br>
+    7. {t("Risk Factors", "风险因素")}<br>
+    8. {t("Action Plan", "优化方向")}
+    </div>
+    """, unsafe_allow_html=True)
 
     # 1 Executive summary
     st.markdown("### " + t("1. Executive Summary", "1. 执行摘要"))
